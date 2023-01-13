@@ -1,0 +1,14 @@
+{
+  "domain": "youtube_lounge",
+  "name": "YouTube Lounge",
+  "config_flow": true,
+  "documentation": "https://www.home-assistant.io/integrations/youtube_lounge",
+  "integration_type": "device",
+  "requirements": ["pyytlounge==0.0.1", "aiogoogle==5.1.0"],
+  "ssdp": [],
+  "zeroconf": [],
+  "homekit": {},
+  "dependencies": [],
+  "codeowners": ["@FabioGNR"],
+  "iot_class": "cloud_push"
+}

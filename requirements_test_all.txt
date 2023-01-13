@@ -221,6 +221,9 @@ aioflo==2021.11.0
 # homeassistant.components.github
 aiogithubapi==22.10.1
 
+# homeassistant.components.youtube_lounge
+aiogoogle==5.1.0
+
 # homeassistant.components.guardian
 aioguardian==2022.07.0
 
@@ -1668,6 +1671,9 @@ pyws66i==1.1
 
 # homeassistant.components.yardian
 pyyardian==1.1.0
+
+# homeassistant.components.youtube_lounge
+pyytlounge==0.0.1
 
 # homeassistant.components.zerproc
 pyzerproc==0.4.8

@@ -6588,6 +6588,12 @@
       "config_flow": true,
       "iot_class": "local_polling"
     },
+    "youtube_lounge": {
+      "name": "YouTube Lounge",
+      "integration_type": "device",
+      "config_flow": true,
+      "iot_class": "cloud_push"
+    },
     "zabbix": {
       "name": "Zabbix",
       "integration_type": "hub",

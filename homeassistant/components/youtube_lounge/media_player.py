@@ -95,7 +95,7 @@ class YtMediaPlayer(MediaPlayerEntity):
 
             while True:
                 while not self._api.connected():
-                    self._state = None
+                    await self.__new_state(None)
                     await asyncio.sleep(CONNECT_RETRY_INTERVAL)
                     await self._api.connect()
                 await self._api.subscribe(self.__new_state)
@@ -130,7 +130,7 @@ class YtMediaPlayer(MediaPlayerEntity):
         else:
             self._video_info = None
 
-    async def __new_state(self, state: PlaybackState):
+    async def __new_state(self, state: PlaybackState | None):
         self._state_time = homeassistant.util.dt.utcnow()
         self._state = state
         await self.__update_video_snippet()

@@ -187,12 +187,12 @@ class YtMediaPlayer(MediaPlayerEntity):
     @property
     def media_title(self) -> str | None:
         """Title of current playing media."""
-        return self._video_info and self._video_info.title or ""
+        return self._video_info and self._video_info.title or None
 
     @property
     def media_channel(self) -> str | None:
         """Channel currently playing."""
-        return self._video_info and self._video_info.channel_title or ""
+        return self._video_info and self._video_info.channel_title or None
 
     @property
     def media_position(self) -> int | None:

@@ -61,6 +61,9 @@ class _VideoInfo:
         self.channel_title = snippet["channelTitle"]
 
 
+CONNECT_RETRY_INTERVAL = 10
+
+
 class YtMediaPlayer(MediaPlayerEntity):
     """Media player entity for YouTube Lounge integration."""
 
@@ -74,22 +77,37 @@ class YtMediaPlayer(MediaPlayerEntity):
             asyncio.create_task(self.__setup_youtube_api())
 
         self._state_time = homeassistant.util.dt.utcnow()
-        self._state = PlaybackState()
+        self._state: PlaybackState | None = None
         self._video_info: _VideoInfo | None = None
         self._subscription: Task | None = None
 
     async def __setup_youtube_api(self):
         async with Aiogoogle(api_key=self._google_api_key) as aiogoogle:
             self._yt_api = await aiogoogle.discover("youtube", "v3")
-        if self._state.videoId:
+        if self._state and self._state.videoId:
             await self.__update_video_snippet()
             self.async_write_ha_state()
+
+    async def __subscribe_and_keep_alive(self):
+        try:
+            if not self._api.connected():
+                await self._api.connect()
+
+            while True:
+                while not self._api.connected():
+                    self._state = None
+                    await asyncio.sleep(CONNECT_RETRY_INTERVAL)
+                    await self._api.connect()
+                await self._api.subscribe(self.__new_state)
+
+        except asyncio.CancelledError:
+            pass
 
     async def async_added_to_hass(self) -> None:
         """Connect and subscribe to dispatcher signals and state updates."""
         await super().async_added_to_hass()
 
-        self._subscription = asyncio.create_task(self._api.subscribe(self.__new_state))
+        self._subscription = asyncio.create_task(self.__subscribe_and_keep_alive())
 
         self.async_on_remove(self.__removed_from_hass)
 
@@ -98,7 +116,7 @@ class YtMediaPlayer(MediaPlayerEntity):
             self._subscription.cancel()
 
     async def __update_video_snippet(self):
-        if self._yt_api and self._state.videoId:
+        if self._yt_api and self._state and self._state.videoId:
             if self._video_info and self._state.videoId == self._video_info.id:
                 return  # already have this video info
 
@@ -131,6 +149,8 @@ class YtMediaPlayer(MediaPlayerEntity):
     @property
     def state(self) -> MediaPlayerState:
         """State of the player."""
+        if not self._state:
+            return MediaPlayerState.OFF
         if self._state.state in [YtState.Playing, YtState.Starting, YtState.Buffering]:
             return MediaPlayerState.PLAYING
         if self._state.state == YtState.Paused:
@@ -177,7 +197,7 @@ class YtMediaPlayer(MediaPlayerEntity):
     @property
     def media_position(self) -> int | None:
         """Position of current playing media in seconds."""
-        return int(self._state.currentTime)
+        return self._state and int(self._state.currentTime) or None
 
     @property
     def media_position_updated_at(self) -> dt.datetime | None:
@@ -185,17 +205,17 @@ class YtMediaPlayer(MediaPlayerEntity):
 
         Returns value from homeassistant.util.dt.utcnow().
         """
-        return self._state_time
+        return self._state and self._state_time or None
 
     @property
     def media_duration(self) -> int | None:
         """Duration of current playing media in seconds."""
-        return int(self._state.duration)
+        return self._state and int(self._state.duration) or None
 
     @property
     def media_image_url(self) -> str | None:
         """Image url of current playing media."""
-        if self._state.videoId:
+        if self._state and self._state.videoId:
             return get_thumbnail_url(self._state.videoId)
 
         return None

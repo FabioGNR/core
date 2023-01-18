@@ -5,16 +5,11 @@
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/youtube_lounge",
   "integration_type": "device",
-  "requirements": [
-    "pyytlounge==1.0.0",
-    "aiogoogle==5.1.0"
-  ],
+  "requirements": ["pyytlounge==1.1.0", "aiogoogle==5.1.0"],
   "ssdp": [],
   "zeroconf": [],
   "homekit": {},
   "dependencies": [],
-  "codeowners": [
-    "@FabioGNR"
-  ],
+  "codeowners": ["@FabioGNR"],
   "iot_class": "cloud_push"
 }

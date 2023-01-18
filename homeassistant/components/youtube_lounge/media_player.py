@@ -173,7 +173,7 @@ class YtMediaPlayer(MediaPlayerEntity):
     @property
     def device_class(self) -> MediaPlayerDeviceClass | None:
         """Return the class of this entity."""
-        return MediaPlayerDeviceClass.TV
+        return None
 
     @property
     def device_info(self) -> DeviceInfo:

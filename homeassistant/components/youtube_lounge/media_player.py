@@ -97,6 +97,8 @@ class YtMediaPlayer(MediaPlayerEntity):
                 while not self._api.connected():
                     await self.__new_state(None)
                     await asyncio.sleep(CONNECT_RETRY_INTERVAL)
+                    if not self._api.linked():
+                        await self._api.refresh_auth()
                     await self._api.connect()
                 await self._api.subscribe(self.__new_state)
 

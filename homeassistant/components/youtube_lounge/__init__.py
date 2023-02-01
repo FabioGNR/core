@@ -21,11 +21,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     api = YtLoungeApi(device_name(hass))
     api.auth.deserialize(entry.data["auth"])
 
-    if await api.connect():
+    if not api.paired():
+        # todo: trigger config flow for new manual pairing setup
+        return False
+
+    async def create_entry():
         hass.data[DOMAIN][entry.entry_id] = api
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    return True
+    if await api.connect():
+        await create_entry()
+        return True
+
+    # try refresh auth first
+    if await api.refresh_auth():
+        if await api.connect():
+            await create_entry()
+            return True
+
+    return False
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

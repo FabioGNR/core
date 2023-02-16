@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pyytlounge import YtLoungeApi
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryAuthFailed
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
@@ -22,8 +22,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     api.auth.deserialize(entry.data["auth"])
 
     if not api.paired():
-        # todo: trigger config flow for new manual pairing setup
-        return False
+        raise ConfigEntryAuthFailed("Not paired")
 
     async def create_entry():
         hass.data[DOMAIN][entry.entry_id] = api

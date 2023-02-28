@@ -1673,7 +1673,7 @@ pyws66i==1.1
 pyyardian==1.1.0
 
 # homeassistant.components.youtube_lounge
-pyytlounge==0.0.1
+pyytlounge==1.2.1
 
 # homeassistant.components.zerproc
 pyzerproc==0.4.8

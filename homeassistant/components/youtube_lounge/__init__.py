@@ -7,7 +7,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigEntryAuthFailed
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import DOMAIN, LOGGER
 from .util import device_name
 
 PLATFORMS: list[Platform] = [Platform.MEDIA_PLAYER]
@@ -18,7 +18,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})
 
-    api = YtLoungeApi(device_name(hass))
+    api = YtLoungeApi(device_name(hass), logger=LOGGER)
     api.auth.deserialize(entry.data["auth"])
 
     if not api.paired():

@@ -153,7 +153,12 @@ class YtMediaPlayer(MediaPlayerEntity):
         """State of the player."""
         if not self._state:
             return MediaPlayerState.OFF
-        if self._state.state in [YtState.Playing, YtState.Starting, YtState.Buffering]:
+        if self._state.state in [
+            YtState.Playing,
+            YtState.Starting,
+            YtState.Buffering,
+            YtState.Advertisement,
+        ]:
             return MediaPlayerState.PLAYING
         if self._state.state == YtState.Paused:
             return MediaPlayerState.PAUSED

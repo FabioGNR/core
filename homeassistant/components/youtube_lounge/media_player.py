@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 from asyncio import Task
 import datetime as dt
-import logging
 from typing import TypedDict
 
 from aiogoogle import Aiogoogle
@@ -102,8 +101,8 @@ class YtMediaPlayer(MediaPlayerEntity):
 
         except asyncio.CancelledError:
             pass
-        except Exception as e:
-            LOGGER.exception(e)
+        except Exception as exception:
+            LOGGER.exception(exception)
 
     async def async_added_to_hass(self) -> None:
         """Connect and subscribe to dispatcher signals and state updates."""

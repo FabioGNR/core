@@ -59,6 +59,7 @@ class _VideoInfo:
 
 
 CONNECT_RETRY_INTERVAL = 10
+SUBSCRIBE_RETRY_INTERVAL = 1
 
 
 class YtMediaPlayer(MediaPlayerEntity):
@@ -98,6 +99,7 @@ class YtMediaPlayer(MediaPlayerEntity):
                         await self._api.refresh_auth()
                     await self._api.connect()
                 await self._api.subscribe(self.__new_state)
+                await asyncio.sleep(SUBSCRIBE_RETRY_INTERVAL)
 
         except asyncio.CancelledError:
             pass

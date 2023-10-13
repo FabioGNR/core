@@ -2262,7 +2262,7 @@ pyxeoma==1.4.1
 pyyardian==1.1.0
 
 # homeassistant.components.youtube_lounge
-pyytlounge==1.6.2
+pyytlounge==1.6.3
 
 # homeassistant.components.qrcode
 pyzbar==0.1.7

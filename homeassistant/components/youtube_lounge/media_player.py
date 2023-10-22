@@ -59,6 +59,7 @@ class _VideoInfo:
 
 
 CONNECT_RETRY_INTERVAL = 10
+ERROR_RETRY_INTERVAL = 30
 SUBSCRIBE_RETRY_INTERVAL = 1
 
 
@@ -86,31 +87,38 @@ class YtMediaPlayer(MediaPlayerEntity):
             await self.__update_video_snippet()
             self.async_write_ha_state()
 
+    async def __subscription_task(self):
+        while True:
+            try:
+                await self.__subscribe_and_keep_alive()
+            except asyncio.CancelledError:
+                break
+            except:
+                LOGGER.exception(
+                    "Subscribe and keep alive encountered error, waiting %.0f seconds",
+                    ERROR_RETRY_INTERVAL,
+                )
+                await asyncio.sleep(ERROR_RETRY_INTERVAL)
+
     async def __subscribe_and_keep_alive(self):
-        try:
-            if not self._api.connected():
+        if not self._api.connected():
+            await self._api.connect()
+
+        while True:
+            while not self._api.connected():
+                await self.__new_state(None)
+                await asyncio.sleep(CONNECT_RETRY_INTERVAL)
+                if not self._api.linked():
+                    await self._api.refresh_auth()
                 await self._api.connect()
-
-            while True:
-                while not self._api.connected():
-                    await self.__new_state(None)
-                    await asyncio.sleep(CONNECT_RETRY_INTERVAL)
-                    if not self._api.linked():
-                        await self._api.refresh_auth()
-                    await self._api.connect()
-                await self._api.subscribe(self.__new_state)
-                await asyncio.sleep(SUBSCRIBE_RETRY_INTERVAL)
-
-        except asyncio.CancelledError:
-            pass
-        except Exception as exception:
-            LOGGER.exception(exception)
+            await self._api.subscribe(self.__new_state)
+            await asyncio.sleep(SUBSCRIBE_RETRY_INTERVAL)
 
     async def async_added_to_hass(self) -> None:
         """Connect and subscribe to dispatcher signals and state updates."""
         await super().async_added_to_hass()
 
-        self._subscription = asyncio.create_task(self.__subscribe_and_keep_alive())
+        self._subscription = asyncio.create_task(self.__subscription_task())
 
         self.async_on_remove(self.__removed_from_hass)
 

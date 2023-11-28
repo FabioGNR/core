@@ -158,6 +158,12 @@ class YtMediaPlayer(MediaPlayerEntity):
         return True
 
     @property
+    def name(self):
+        """Name of the entity."""
+        # return None to use device name
+        return None
+
+    @property
     def state(self) -> MediaPlayerState:
         """State of the player."""
         if not self._state:

@@ -90,6 +90,7 @@ class YtMediaPlayer(MediaPlayerEntity):
     async def __subscription_task(self):
         while True:
             try:
+                LOGGER.debug("Starting subscribe and keep alive")
                 await self.__subscribe_and_keep_alive()
             except asyncio.CancelledError:
                 break
@@ -106,11 +107,13 @@ class YtMediaPlayer(MediaPlayerEntity):
 
         while True:
             while not self._api.connected():
+                LOGGER.debug("subscribe_and_keep_alive: reconnecting")
                 await self.__new_state(None)
                 await asyncio.sleep(CONNECT_RETRY_INTERVAL)
                 if not self._api.linked():
                     await self._api.refresh_auth()
                 await self._api.connect()
+            LOGGER.debug("subscribe_and_keep_alive: subscribing")
             await self._api.subscribe(self.__new_state)
             await asyncio.sleep(SUBSCRIBE_RETRY_INTERVAL)
 

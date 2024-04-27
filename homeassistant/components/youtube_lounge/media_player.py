@@ -19,10 +19,13 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity_platform import (
+    AddEntitiesCallback,
+    async_get_current_platform,
+)
 
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN, LOGGER, SERVICE_RECONNECT
 
 
 async def async_setup_entry(
@@ -33,6 +36,10 @@ async def async_setup_entry(
 
     api_key: str | None = entry.data.get("google_api_key")
     async_add_entities([YtMediaPlayer(api, api_key)])
+
+    platform = async_get_current_platform()
+
+    platform.async_register_entity_service(SERVICE_RECONNECT, {}, "manual_reconnect")
 
 
 class _VideoSnippet(TypedDict):
@@ -73,7 +80,7 @@ class YtMediaPlayer(MediaPlayerEntity):
         self._yt_api = None
 
         if self._google_api_key:
-            asyncio.create_task(self.__setup_youtube_api())
+            self.hass.async_create_task(self.__setup_youtube_api())
 
         self._state_time = homeassistant.util.dt.utcnow()
         self._state: PlaybackState | None = None
@@ -117,17 +124,31 @@ class YtMediaPlayer(MediaPlayerEntity):
             await self._api.subscribe(self.__new_state)
             await asyncio.sleep(SUBSCRIBE_RETRY_INTERVAL)
 
+    async def manual_reconnect(self):
+        """ Refresh the authorization of the api, to manually fix broken connections. """
+        if self._subscription:
+            LOGGER.debug("manual_reconnect: cancelling subscription")
+            self._subscription.cancel()
+            LOGGER.debug("manual_reconnect: waiting for subscription to end")
+            await self._subscription
+            refreshed = await self._api.refresh_auth()
+            LOGGER.debug("manual_reconnect: refresh auth %s", refreshed)
+            connected = await self._api.connect()
+            LOGGER.debug("manual_reconnect: connect %s", connected)
+        self._subscription = self.hass.async_create_task(self.__subscription_task())
+
     async def async_added_to_hass(self) -> None:
         """Connect and subscribe to dispatcher signals and state updates."""
         await super().async_added_to_hass()
 
-        self._subscription = asyncio.create_task(self.__subscription_task())
+        self._subscription = self.hass.async_create_task(self.__subscription_task())
 
         self.async_on_remove(self.__removed_from_hass)
 
     def __removed_from_hass(self) -> None:
         if self._subscription:
             self._subscription.cancel()
+            self._subscription = None
 
     async def __update_video_snippet(self):
         if self._yt_api and self._state and self._state.videoId:

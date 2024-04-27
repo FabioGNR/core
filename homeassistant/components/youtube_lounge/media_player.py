@@ -79,9 +79,6 @@ class YtMediaPlayer(MediaPlayerEntity):
         self._google_api_key = api_key
         self._yt_api = None
 
-        if self._google_api_key:
-            self.hass.async_create_task(self.__setup_youtube_api())
-
         self._state_time = homeassistant.util.dt.utcnow()
         self._state: PlaybackState | None = None
         self._video_info: _VideoInfo | None = None
@@ -125,7 +122,7 @@ class YtMediaPlayer(MediaPlayerEntity):
             await asyncio.sleep(SUBSCRIBE_RETRY_INTERVAL)
 
     async def manual_reconnect(self):
-        """ Refresh the authorization of the api, to manually fix broken connections. """
+        """Refresh the authorization of the api, to manually fix broken connections."""
         if self._subscription:
             LOGGER.debug("manual_reconnect: cancelling subscription")
             self._subscription.cancel()
@@ -142,6 +139,9 @@ class YtMediaPlayer(MediaPlayerEntity):
         await super().async_added_to_hass()
 
         self._subscription = self.hass.async_create_task(self.__subscription_task())
+
+        if self._google_api_key:
+            self.hass.async_create_task(self.__setup_youtube_api())
 
         self.async_on_remove(self.__removed_from_hass)
 

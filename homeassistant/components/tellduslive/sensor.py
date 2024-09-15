@@ -1,4 +1,5 @@
 """Support for Tellstick Net/Telstick Live sensors."""
+
 from __future__ import annotations
 
 from homeassistant.components import sensor
@@ -24,8 +25,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .. import tellduslive
-from .entry import TelldusLiveEntity
+from .const import DOMAIN, TELLDUS_DISCOVERY_NEW
+from .entity import TelldusLiveEntity
 
 SENSOR_TYPE_TEMPERATURE = "temp"
 SENSOR_TYPE_HUMIDITY = "humidity"
@@ -126,12 +127,12 @@ async def async_setup_entry(
 
     async def async_discover_sensor(device_id):
         """Discover and add a discovered sensor."""
-        client = hass.data[tellduslive.DOMAIN]
+        client = hass.data[DOMAIN]
         async_add_entities([TelldusLiveSensor(client, device_id)])
 
     async_dispatcher_connect(
         hass,
-        tellduslive.TELLDUS_DISCOVERY_NEW.format(sensor.DOMAIN, tellduslive.DOMAIN),
+        TELLDUS_DISCOVERY_NEW.format(sensor.DOMAIN, DOMAIN),
         async_discover_sensor,
     )
 
@@ -142,7 +143,6 @@ class TelldusLiveSensor(TelldusLiveEntity, SensorEntity):
     def __init__(self, client, device_id):
         """Initialize TelldusLiveSensor."""
         super().__init__(client, device_id)
-        self._attr_unique_id = "{}-{}-{}".format(*device_id)
         if desc := SENSOR_TYPES.get(self._type):
             self.entity_description = desc
         else:
@@ -190,3 +190,8 @@ class TelldusLiveSensor(TelldusLiveEntity, SensorEntity):
         if self._type == SENSOR_TYPE_LUMINANCE:
             return self._value_as_luminance
         return self._value
+
+    @property
+    def unique_id(self) -> str:
+        """Return a unique ID."""
+        return "{}-{}-{}".format(*self._id)

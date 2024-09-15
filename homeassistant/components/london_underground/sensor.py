@@ -1,12 +1,17 @@
 """Sensor for checking the status of London Underground tube lines."""
+
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from london_tube_status import TubeData
 import voluptuous as vol
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity
+from homeassistant.components.sensor import (
+    PLATFORM_SCHEMA as SENSOR_PLATFORM_SCHEMA,
+    SensorEntity,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import PlatformNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -20,7 +25,7 @@ from .coordinator import LondonTubeCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+PLATFORM_SCHEMA = SENSOR_PLATFORM_SCHEMA.extend(
     {vol.Required(CONF_LINE): vol.All(cv.ensure_list, [vol.In(list(TUBE_LINES))])}
 )
 
@@ -43,11 +48,9 @@ async def async_setup_platform(
     if not coordinator.last_update_success:
         raise PlatformNotReady
 
-    sensors = []
-    for line in config[CONF_LINE]:
-        sensors.append(LondonTubeSensor(coordinator, line))
-
-    async_add_entities(sensors)
+    async_add_entities(
+        LondonTubeSensor(coordinator, line) for line in config[CONF_LINE]
+    )
 
 
 class LondonTubeSensor(CoordinatorEntity[LondonTubeCoordinator], SensorEntity):
@@ -56,22 +59,22 @@ class LondonTubeSensor(CoordinatorEntity[LondonTubeCoordinator], SensorEntity):
     _attr_attribution = "Powered by TfL Open Data"
     _attr_icon = "mdi:subway"
 
-    def __init__(self, coordinator, name):
+    def __init__(self, coordinator: LondonTubeCoordinator, name: str) -> None:
         """Initialize the London Underground sensor."""
         super().__init__(coordinator)
         self._name = name
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Return the name of the sensor."""
         return self._name
 
     @property
-    def native_value(self):
+    def native_value(self) -> str:
         """Return the state of the sensor."""
         return self.coordinator.data[self.name]["State"]
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self) -> dict[str, Any]:
         """Return other details about the sensor state."""
         return {"Description": self.coordinator.data[self.name]["Description"]}

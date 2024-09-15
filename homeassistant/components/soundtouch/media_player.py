@@ -1,9 +1,9 @@
 """Support for interface with a Bose SoundTouch."""
+
 from __future__ import annotations
 
 from functools import partial
 import logging
-import re
 from typing import Any
 
 from libsoundtouch.device import SoundTouchDevice
@@ -250,7 +250,7 @@ class SoundTouchMediaPlayer(MediaPlayerEntity):
     ) -> None:
         """Play a piece of media."""
         _LOGGER.debug("Starting media with media_id: %s", media_id)
-        if re.match(r"http?://", str(media_id)):
+        if str(media_id).lower().startswith("http://"):  # no https support
             # URL
             _LOGGER.debug("Playing URL %s", str(media_id))
             self._device.play_url(str(media_id))
@@ -409,10 +409,8 @@ class SoundTouchMediaPlayer(MediaPlayerEntity):
             if slave_instance and slave_instance.entity_id != master:
                 slaves.append(slave_instance.entity_id)
 
-        attributes = {
+        return {
             "master": master,
             "is_master": master == self.entity_id,
             "slaves": slaves,
         }
-
-        return attributes

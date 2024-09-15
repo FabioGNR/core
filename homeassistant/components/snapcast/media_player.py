@@ -1,24 +1,20 @@
 """Support for interacting with Snapcast clients."""
+
 from __future__ import annotations
 
-import logging
-
-from snapcast.control.server import CONTROL_PORT, Snapserver
+from snapcast.control.server import Snapserver
 import voluptuous as vol
 
 from homeassistant.components.media_player import (
-    PLATFORM_SCHEMA,
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
     MediaPlayerState,
 )
-from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
-from homeassistant.core import DOMAIN as HOMEASSISTANT_DOMAIN, HomeAssistant
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from .const import (
     ATTR_LATENCY,
@@ -35,12 +31,6 @@ from .const import (
     SERVICE_UNJOIN,
 )
 
-_LOGGER = logging.getLogger(__name__)
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {vol.Required(CONF_HOST): cv.string, vol.Optional(CONF_PORT): cv.port}
-)
-
 STREAM_STATUS = {
     "idle": MediaPlayerState.IDLE,
     "playing": MediaPlayerState.PLAYING,
@@ -52,12 +42,12 @@ def register_services():
     """Register snapcast services."""
     platform = entity_platform.async_get_current_platform()
 
-    platform.async_register_entity_service(SERVICE_SNAPSHOT, {}, "snapshot")
-    platform.async_register_entity_service(SERVICE_RESTORE, {}, "async_restore")
+    platform.async_register_entity_service(SERVICE_SNAPSHOT, None, "snapshot")
+    platform.async_register_entity_service(SERVICE_RESTORE, None, "async_restore")
     platform.async_register_entity_service(
         SERVICE_JOIN, {vol.Required(ATTR_MASTER): cv.entity_id}, handle_async_join
     )
-    platform.async_register_entity_service(SERVICE_UNJOIN, {}, handle_async_unjoin)
+    platform.async_register_entity_service(SERVICE_UNJOIN, None, handle_async_unjoin)
     platform.async_register_entity_service(
         SERVICE_SET_LATENCY,
         {vol.Required(ATTR_LATENCY): cv.positive_int},
@@ -91,37 +81,6 @@ async def async_setup_entry(
     hass.data[DOMAIN][
         config_entry.entry_id
     ].hass_async_add_entities = async_add_entities
-
-
-async def async_setup_platform(
-    hass: HomeAssistant,
-    config: ConfigType,
-    async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
-) -> None:
-    """Set up the Snapcast platform."""
-    async_create_issue(
-        hass,
-        HOMEASSISTANT_DOMAIN,
-        f"deprecated_yaml_{DOMAIN}",
-        breaks_in_ha_version="2023.11.0",
-        is_fixable=False,
-        issue_domain=DOMAIN,
-        severity=IssueSeverity.WARNING,
-        translation_key="deprecated_yaml",
-        translation_placeholders={
-            "domain": DOMAIN,
-            "integration_title": "Snapcast",
-        },
-    )
-
-    config[CONF_PORT] = config.get(CONF_PORT, CONTROL_PORT)
-
-    hass.async_create_task(
-        hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": SOURCE_IMPORT}, data=config
-        )
-    )
 
 
 async def handle_async_join(entity, service_call):

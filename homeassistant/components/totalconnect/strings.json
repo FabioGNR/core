@@ -33,9 +33,9 @@
     "step": {
       "init": {
         "title": "TotalConnect Options",
-        "description": "Automatically bypass zones the moment they report a low battery.",
         "data": {
-          "auto_bypass_low_battery": "Auto bypass low battery"
+          "auto_bypass_low_battery": "Auto bypass low battery",
+          "code_required": "Require user to enter code for alarm actions"
         }
       }
     }
@@ -48,6 +48,38 @@
     "arm_home_instant": {
       "name": "Arm home instant",
       "description": "Arms Home with zero entry delay."
+    }
+  },
+  "entity": {
+    "alarm_control_panel": {
+      "partition": {
+        "name": "Partition {partition_id}"
+      }
+    },
+    "binary_sensor": {
+      "police": {
+        "name": "Police emergency",
+        "state": {
+          "off": "No emergency",
+          "on": "Police emergency"
+        }
+      }
+    },
+    "button": {
+      "clear_bypass": {
+        "name": "Clear bypass"
+      },
+      "bypass_all": {
+        "name": "Bypass all"
+      },
+      "bypass": {
+        "name": "Bypass"
+      }
+    }
+  },
+  "exceptions": {
+    "invalid_pin": {
+      "message": "Incorrect code entered"
     }
   }
 }

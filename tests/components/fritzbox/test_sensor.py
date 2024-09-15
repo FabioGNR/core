@@ -1,11 +1,16 @@
 """Tests for AVM Fritz!Box sensor component."""
+
 from datetime import timedelta
 from unittest.mock import Mock
 
 from requests.exceptions import HTTPError
 
 from homeassistant.components.fritzbox.const import DOMAIN as FB_DOMAIN
-from homeassistant.components.sensor import ATTR_STATE_CLASS, DOMAIN, SensorStateClass
+from homeassistant.components.sensor import (
+    ATTR_STATE_CLASS,
+    DOMAIN as SENSOR_DOMAIN,
+    SensorStateClass,
+)
 from homeassistant.const import (
     ATTR_FRIENDLY_NAME,
     ATTR_UNIT_OF_MEASUREMENT,
@@ -18,15 +23,17 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 import homeassistant.util.dt as dt_util
 
-from . import FritzDeviceSensorMock, setup_config_entry
+from . import FritzDeviceSensorMock, set_devices, setup_config_entry
 from .const import CONF_FAKE_NAME, MOCK_CONFIG
 
 from tests.common import async_fire_time_changed
 
-ENTITY_ID = f"{DOMAIN}.{CONF_FAKE_NAME}"
+ENTITY_ID = f"{SENSOR_DOMAIN}.{CONF_FAKE_NAME}"
 
 
-async def test_setup(hass: HomeAssistant, fritz: Mock) -> None:
+async def test_setup(
+    hass: HomeAssistant, entity_registry: er.EntityRegistry, fritz: Mock
+) -> None:
     """Test setup of platform."""
     device = FritzDeviceSensorMock()
     assert await setup_config_entry(
@@ -61,7 +68,6 @@ async def test_setup(hass: HomeAssistant, fritz: Mock) -> None:
         ],
     )
 
-    entity_registry = er.async_get(hass)
     for sensor in sensors:
         state = hass.states.get(sensor[0])
         assert state
@@ -85,7 +91,7 @@ async def test_update(hass: HomeAssistant, fritz: Mock) -> None:
 
     next_update = dt_util.utcnow() + timedelta(seconds=200)
     async_fire_time_changed(hass, next_update)
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     assert fritz().update_devices.call_count == 2
     assert fritz().login.call_count == 1
@@ -103,7 +109,30 @@ async def test_update_error(hass: HomeAssistant, fritz: Mock) -> None:
 
     next_update = dt_util.utcnow() + timedelta(seconds=200)
     async_fire_time_changed(hass, next_update)
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     assert fritz().update_devices.call_count == 4
     assert fritz().login.call_count == 4
+
+
+async def test_discover_new_device(hass: HomeAssistant, fritz: Mock) -> None:
+    """Test adding new discovered devices during runtime."""
+    device = FritzDeviceSensorMock()
+    assert await setup_config_entry(
+        hass, MOCK_CONFIG[FB_DOMAIN][CONF_DEVICES][0], ENTITY_ID, device, fritz
+    )
+
+    state = hass.states.get(f"{ENTITY_ID}_temperature")
+    assert state
+
+    new_device = FritzDeviceSensorMock()
+    new_device.ain = "7890 1234"
+    new_device.name = "new_device"
+    set_devices(fritz, devices=[device, new_device])
+
+    next_update = dt_util.utcnow() + timedelta(seconds=200)
+    async_fire_time_changed(hass, next_update)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    state = hass.states.get(f"{SENSOR_DOMAIN}.new_device_temperature")
+    assert state

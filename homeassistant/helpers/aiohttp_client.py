@@ -1,17 +1,20 @@
 """Helper for aiohttp webclient stuff."""
+
 from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
+import socket
 from ssl import SSLContext
 import sys
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from aiohttp import web
 from aiohttp.hdrs import CONTENT_TYPE, USER_AGENT
+from aiohttp.resolver import AsyncResolver
 from aiohttp.web_exceptions import HTTPBadGateway, HTTPGatewayTimeout
 
 from homeassistant import config_entries
@@ -19,6 +22,7 @@ from homeassistant.const import APPLICATION_NAME, EVENT_HOMEASSISTANT_CLOSE, __v
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.loader import bind_hass
 from homeassistant.util import ssl as ssl_util
+from homeassistant.util.hass_dict import HassKey
 from homeassistant.util.json import json_loads
 
 from .frame import warn_use
@@ -28,12 +32,16 @@ if TYPE_CHECKING:
     from aiohttp.typedefs import JSONDecoder
 
 
-DATA_CONNECTOR = "aiohttp_connector"
-DATA_CONNECTOR_NOTVERIFY = "aiohttp_connector_notverify"
-DATA_CLIENTSESSION = "aiohttp_clientsession"
-DATA_CLIENTSESSION_NOTVERIFY = "aiohttp_clientsession_notverify"
-SERVER_SOFTWARE = "{0}/{1} aiohttp/{2} Python/{3[0]}.{3[1]}".format(
-    APPLICATION_NAME, __version__, aiohttp.__version__, sys.version_info
+DATA_CONNECTOR: HassKey[dict[tuple[bool, int], aiohttp.BaseConnector]] = HassKey(
+    "aiohttp_connector"
+)
+DATA_CLIENTSESSION: HassKey[dict[tuple[bool, int], aiohttp.ClientSession]] = HassKey(
+    "aiohttp_clientsession"
+)
+
+SERVER_SOFTWARE = (
+    f"{APPLICATION_NAME}/{__version__} "
+    f"aiohttp/{aiohttp.__version__} Python/{sys.version_info[0]}.{sys.version_info[1]}"
 )
 
 ENABLE_CLEANUP_CLOSED = not (3, 11, 1) <= sys.version_info < (3, 11, 4)
@@ -75,22 +83,29 @@ class HassClientResponse(aiohttp.ClientResponse):
 @callback
 @bind_hass
 def async_get_clientsession(
-    hass: HomeAssistant, verify_ssl: bool = True
+    hass: HomeAssistant,
+    verify_ssl: bool = True,
+    family: socket.AddressFamily = socket.AF_UNSPEC,
 ) -> aiohttp.ClientSession:
     """Return default aiohttp ClientSession.
 
     This method must be run in the event loop.
     """
-    key = DATA_CLIENTSESSION if verify_ssl else DATA_CLIENTSESSION_NOTVERIFY
+    session_key = _make_key(verify_ssl, family)
+    sessions = hass.data.setdefault(DATA_CLIENTSESSION, {})
 
-    if key not in hass.data:
-        hass.data[key] = _async_create_clientsession(
+    if session_key not in sessions:
+        session = _async_create_clientsession(
             hass,
             verify_ssl,
             auto_cleanup_method=_async_register_default_clientsession_shutdown,
+            family=family,
         )
+        sessions[session_key] = session
+    else:
+        session = sessions[session_key]
 
-    return cast(aiohttp.ClientSession, hass.data[key])
+    return session
 
 
 @callback
@@ -99,6 +114,7 @@ def async_create_clientsession(
     hass: HomeAssistant,
     verify_ssl: bool = True,
     auto_cleanup: bool = True,
+    family: socket.AddressFamily = socket.AF_UNSPEC,
     **kwargs: Any,
 ) -> aiohttp.ClientSession:
     """Create a new ClientSession with kwargs, i.e. for cookies.
@@ -114,14 +130,13 @@ def async_create_clientsession(
     if auto_cleanup:
         auto_cleanup_method = _async_register_clientsession_shutdown
 
-    clientsession = _async_create_clientsession(
+    return _async_create_clientsession(
         hass,
         verify_ssl,
         auto_cleanup_method=auto_cleanup_method,
+        family=family,
         **kwargs,
     )
-
-    return clientsession
 
 
 @callback
@@ -130,11 +145,12 @@ def _async_create_clientsession(
     verify_ssl: bool = True,
     auto_cleanup_method: Callable[[HomeAssistant, aiohttp.ClientSession], None]
     | None = None,
+    family: socket.AddressFamily = socket.AF_UNSPEC,
     **kwargs: Any,
 ) -> aiohttp.ClientSession:
     """Create a new ClientSession with kwargs, i.e. for cookies."""
     clientsession = aiohttp.ClientSession(
-        connector=_async_get_connector(hass, verify_ssl),
+        connector=_async_get_connector(hass, verify_ssl, family),
         json_serialize=json_dumps,
         response_class=HassClientResponse,
         **kwargs,
@@ -143,8 +159,7 @@ def _async_create_clientsession(
     # It's important that we identify as Home Assistant
     # If a package requires a different user agent, override it by passing a headers
     # dictionary to the request method.
-    # pylint: disable-next=protected-access
-    clientsession._default_headers = MappingProxyType(  # type: ignore[assignment]
+    clientsession._default_headers = MappingProxyType(  # type: ignore[assignment]  # noqa: SLF001
         {USER_AGENT: SERVER_SOFTWARE},
     )
 
@@ -176,13 +191,13 @@ async def async_aiohttp_proxy_web(
         # The user cancelled the request
         return None
 
-    except asyncio.TimeoutError as err:
+    except TimeoutError as err:
         # Timeout trying to start the web request
-        raise HTTPGatewayTimeout() from err
+        raise HTTPGatewayTimeout from err
 
     except aiohttp.ClientError as err:
         # Something went wrong with the connection
-        raise HTTPBadGateway() from err
+        raise HTTPBadGateway from err
 
     try:
         return await async_aiohttp_proxy_stream(
@@ -208,7 +223,7 @@ async def async_aiohttp_proxy_stream(
     await response.prepare(request)
 
     # Suppressing something went wrong fetching data, closed connection
-    with suppress(asyncio.TimeoutError, aiohttp.ClientError):
+    with suppress(TimeoutError, aiohttp.ClientError):
         while hass.is_running:
             async with asyncio.timeout(timeout):
                 data = await stream.read(buffer_size)
@@ -263,30 +278,58 @@ def _async_register_default_clientsession_shutdown(
 
 
 @callback
+def _make_key(
+    verify_ssl: bool = True, family: socket.AddressFamily = socket.AF_UNSPEC
+) -> tuple[bool, socket.AddressFamily]:
+    """Make a key for connector or session pool."""
+    return (verify_ssl, family)
+
+
+class HomeAssistantTCPConnector(aiohttp.TCPConnector):
+    """Home Assistant TCP Connector.
+
+    Same as aiohttp.TCPConnector but with a longer cleanup_closed timeout.
+
+    By default the cleanup_closed timeout is 2 seconds. This is too short
+    for Home Assistant since we churn through a lot of connections. We set
+    it to 60 seconds to reduce the overhead of aborting TLS connections
+    that are likely already closed.
+    """
+
+    # abort transport after 60 seconds (cleanup broken connections)
+    _cleanup_closed_period = 60.0
+
+
+@callback
 def _async_get_connector(
-    hass: HomeAssistant, verify_ssl: bool = True
+    hass: HomeAssistant,
+    verify_ssl: bool = True,
+    family: socket.AddressFamily = socket.AF_UNSPEC,
 ) -> aiohttp.BaseConnector:
     """Return the connector pool for aiohttp.
 
     This method must be run in the event loop.
     """
-    key = DATA_CONNECTOR if verify_ssl else DATA_CONNECTOR_NOTVERIFY
+    connector_key = _make_key(verify_ssl, family)
+    connectors = hass.data.setdefault(DATA_CONNECTOR, {})
 
-    if key in hass.data:
-        return cast(aiohttp.BaseConnector, hass.data[key])
+    if connector_key in connectors:
+        return connectors[connector_key]
 
     if verify_ssl:
-        ssl_context: bool | SSLContext = ssl_util.get_default_context()
+        ssl_context: SSLContext = ssl_util.get_default_context()
     else:
         ssl_context = ssl_util.get_default_no_verify_context()
 
-    connector = aiohttp.TCPConnector(
+    connector = HomeAssistantTCPConnector(
+        family=family,
         enable_cleanup_closed=ENABLE_CLEANUP_CLOSED,
         ssl=ssl_context,
         limit=MAXIMUM_CONNECTIONS,
         limit_per_host=MAXIMUM_CONNECTIONS_PER_HOST,
+        resolver=AsyncResolver(),
     )
-    hass.data[key] = connector
+    connectors[connector_key] = connector
 
     async def _async_close_connector(event: Event) -> None:
         """Close connector pool."""

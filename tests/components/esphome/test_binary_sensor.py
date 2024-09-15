@@ -1,4 +1,5 @@
 """Test ESPHome binary sensors."""
+
 from collections.abc import Awaitable, Callable
 
 from aioesphomeapi import (
@@ -14,12 +15,14 @@ import pytest
 from homeassistant.components.esphome import DomainData
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
 from .conftest import MockESPHomeDevice
 
 from tests.common import MockConfigEntry
 
 
+@pytest.mark.usefixtures("entity_registry_enabled_by_default")
 async def test_assist_in_progress(
     hass: HomeAssistant,
     mock_voice_assistant_v1_entry,
@@ -43,8 +46,22 @@ async def test_assist_in_progress(
     assert state.state == "off"
 
 
+async def test_assist_in_progress_disabled_by_default(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+    mock_voice_assistant_v1_entry,
+) -> None:
+    """Test assist in progress binary sensor is added disabled."""
+
+    assert not hass.states.get("binary_sensor.test_assist_in_progress")
+    entity_entry = entity_registry.async_get("binary_sensor.test_assist_in_progress")
+    assert entity_entry
+    assert entity_entry.disabled
+    assert entity_entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+
+
 @pytest.mark.parametrize(
-    "binary_state", ((True, STATE_ON), (False, STATE_OFF), (None, STATE_UNKNOWN))
+    "binary_state", [(True, STATE_ON), (False, STATE_OFF), (None, STATE_UNKNOWN)]
 )
 async def test_binary_sensor_generic_entity(
     hass: HomeAssistant,

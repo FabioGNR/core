@@ -1,4 +1,5 @@
 """Constants for weather."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -47,6 +48,8 @@ ATTR_WEATHER_CLOUD_COVERAGE = "cloud_coverage"
 ATTR_WEATHER_UV_INDEX = "uv_index"
 
 DOMAIN: Final = "weather"
+
+INTENT_GET_WEATHER = "HassGetWeather"
 
 VALID_UNITS_PRESSURE: set[str] = {
     UnitOfPressure.HPA,

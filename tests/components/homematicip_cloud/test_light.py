@@ -1,4 +1,5 @@
 """Tests for HomematicIP Cloud light."""
+
 from homematicip.base.enums import RGBColorState
 
 from homeassistant.components.homematicip_cloud import DOMAIN as HMIPC_DOMAIN
@@ -15,7 +16,7 @@ from homeassistant.const import ATTR_SUPPORTED_FEATURES, STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 
-from .helper import async_manipulate_test_data, get_and_check_entity_basics
+from .helper import HomeFactory, async_manipulate_test_data, get_and_check_entity_basics
 
 
 async def test_manually_configured_platform(hass: HomeAssistant) -> None:
@@ -26,7 +27,9 @@ async def test_manually_configured_platform(hass: HomeAssistant) -> None:
     assert not hass.data.get(HMIPC_DOMAIN)
 
 
-async def test_hmip_light(hass: HomeAssistant, default_mock_hap_factory) -> None:
+async def test_hmip_light(
+    hass: HomeAssistant, default_mock_hap_factory: HomeFactory
+) -> None:
     """Test HomematicipLight."""
     entity_id = "light.treppe_ch"
     entity_name = "Treppe CH"
@@ -55,7 +58,7 @@ async def test_hmip_light(hass: HomeAssistant, default_mock_hap_factory) -> None
     await async_manipulate_test_data(hass, hmip_device, "on", False)
     ha_state = hass.states.get(entity_id)
     assert ha_state.state == STATE_OFF
-    assert ATTR_COLOR_MODE not in ha_state.attributes
+    assert ha_state.attributes[ATTR_COLOR_MODE] is None
     assert ha_state.attributes[ATTR_SUPPORTED_COLOR_MODES] == [ColorMode.ONOFF]
     assert ha_state.attributes[ATTR_SUPPORTED_FEATURES] == 0
 
@@ -72,7 +75,7 @@ async def test_hmip_light(hass: HomeAssistant, default_mock_hap_factory) -> None
 
 
 async def test_hmip_notification_light(
-    hass: HomeAssistant, default_mock_hap_factory
+    hass: HomeAssistant, default_mock_hap_factory: HomeFactory
 ) -> None:
     """Test HomematicipNotificationLight."""
     entity_id = "light.alarm_status"
@@ -87,7 +90,7 @@ async def test_hmip_notification_light(
     )
 
     assert ha_state.state == STATE_OFF
-    assert ATTR_COLOR_MODE not in ha_state.attributes
+    assert ha_state.attributes[ATTR_COLOR_MODE] is None
     assert ha_state.attributes[ATTR_SUPPORTED_COLOR_MODES] == [ColorMode.HS]
     assert ha_state.attributes[ATTR_SUPPORTED_FEATURES] == LightEntityFeature.TRANSITION
     service_call_counter = len(hmip_device.mock_calls)
@@ -170,7 +173,9 @@ async def test_hmip_notification_light(
     assert not ha_state.attributes.get(ATTR_BRIGHTNESS)
 
 
-async def test_hmip_dimmer(hass: HomeAssistant, default_mock_hap_factory) -> None:
+async def test_hmip_dimmer(
+    hass: HomeAssistant, default_mock_hap_factory: HomeFactory
+) -> None:
     """Test HomematicipDimmer."""
     entity_id = "light.schlafzimmerlicht"
     entity_name = "Schlafzimmerlicht"
@@ -184,7 +189,7 @@ async def test_hmip_dimmer(hass: HomeAssistant, default_mock_hap_factory) -> Non
     )
 
     assert ha_state.state == STATE_OFF
-    assert ATTR_COLOR_MODE not in ha_state.attributes
+    assert ha_state.attributes[ATTR_COLOR_MODE] is None
     assert ha_state.attributes[ATTR_SUPPORTED_COLOR_MODES] == [ColorMode.BRIGHTNESS]
     assert ha_state.attributes[ATTR_SUPPORTED_FEATURES] == 0
     service_call_counter = len(hmip_device.mock_calls)
@@ -229,7 +234,7 @@ async def test_hmip_dimmer(hass: HomeAssistant, default_mock_hap_factory) -> Non
 
 
 async def test_hmip_light_measuring(
-    hass: HomeAssistant, default_mock_hap_factory
+    hass: HomeAssistant, default_mock_hap_factory: HomeFactory
 ) -> None:
     """Test HomematicipLightMeasuring."""
     entity_id = "light.flur_oben"
@@ -244,7 +249,7 @@ async def test_hmip_light_measuring(
     )
 
     assert ha_state.state == STATE_OFF
-    assert ATTR_COLOR_MODE not in ha_state.attributes
+    assert ha_state.attributes[ATTR_COLOR_MODE] is None
     assert ha_state.attributes[ATTR_SUPPORTED_COLOR_MODES] == [ColorMode.ONOFF]
     assert ha_state.attributes[ATTR_SUPPORTED_FEATURES] == 0
     service_call_counter = len(hmip_device.mock_calls)
@@ -275,7 +280,7 @@ async def test_hmip_light_measuring(
 
 
 async def test_hmip_wired_multi_dimmer(
-    hass: HomeAssistant, default_mock_hap_factory
+    hass: HomeAssistant, default_mock_hap_factory: HomeFactory
 ) -> None:
     """Test HomematicipMultiDimmer."""
     entity_id = "light.raumlich_kuche"
@@ -290,7 +295,7 @@ async def test_hmip_wired_multi_dimmer(
     )
 
     assert ha_state.state == STATE_OFF
-    assert ATTR_COLOR_MODE not in ha_state.attributes
+    assert ha_state.attributes[ATTR_COLOR_MODE] is None
     assert ha_state.attributes[ATTR_SUPPORTED_COLOR_MODES] == [ColorMode.BRIGHTNESS]
     assert ha_state.attributes[ATTR_SUPPORTED_FEATURES] == 0
     service_call_counter = len(hmip_device.mock_calls)
@@ -335,7 +340,7 @@ async def test_hmip_wired_multi_dimmer(
 
 
 async def test_hmip_din_rail_dimmer_3_channel1(
-    hass: HomeAssistant, default_mock_hap_factory
+    hass: HomeAssistant, default_mock_hap_factory: HomeFactory
 ) -> None:
     """Test HomematicIP DinRailDimmer3 Channel 1."""
     entity_id = "light.3_dimmer_channel1"
@@ -394,7 +399,7 @@ async def test_hmip_din_rail_dimmer_3_channel1(
 
 
 async def test_hmip_din_rail_dimmer_3_channel2(
-    hass: HomeAssistant, default_mock_hap_factory
+    hass: HomeAssistant, default_mock_hap_factory: HomeFactory
 ) -> None:
     """Test HomematicIP DinRailDimmer3 Channel 2."""
     entity_id = "light.3_dimmer_channel2"
@@ -453,7 +458,7 @@ async def test_hmip_din_rail_dimmer_3_channel2(
 
 
 async def test_hmip_din_rail_dimmer_3_channel3(
-    hass: HomeAssistant, default_mock_hap_factory
+    hass: HomeAssistant, default_mock_hap_factory: HomeFactory
 ) -> None:
     """Test HomematicIP DinRailDimmer3 Channel 3."""
     entity_id = "light.esstisch"

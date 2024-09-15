@@ -1,28 +1,29 @@
 """Camera for the Trafikverket Camera integration."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
 
 from homeassistant.components.camera import Camera
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_LOCATION
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import ATTR_DESCRIPTION, ATTR_TYPE, DOMAIN
+from . import TVCameraConfigEntry
+from .const import ATTR_DESCRIPTION, ATTR_TYPE
 from .coordinator import TVDataUpdateCoordinator
 from .entity import TrafikverketCameraEntity
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: TVCameraConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up a Trafikverket Camera."""
 
-    coordinator: TVDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
 
     async_add_entities(
         [
@@ -36,6 +37,8 @@ async def async_setup_entry(
 
 class TVCamera(TrafikverketCameraEntity, Camera):
     """Implement Trafikverket camera."""
+
+    _unrecorded_attributes = frozenset({ATTR_DESCRIPTION, ATTR_LOCATION})
 
     _attr_name = None
     _attr_translation_key = "tv_camera"

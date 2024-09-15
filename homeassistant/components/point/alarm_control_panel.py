@@ -1,11 +1,12 @@
 """Support for Minut Point."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
 import logging
 
 from homeassistant.components.alarm_control_panel import (
-    DOMAIN,
+    DOMAIN as ALARM_CONTROL_PANEL_DOMAIN,
     AlarmControlPanelEntity,
     AlarmControlPanelEntityFeature,
 )
@@ -46,7 +47,9 @@ async def async_setup_entry(
         async_add_entities([MinutPointAlarmControl(client, home_id)], True)
 
     async_dispatcher_connect(
-        hass, POINT_DISCOVERY_NEW.format(DOMAIN, POINT_DOMAIN), async_discover_home
+        hass,
+        POINT_DISCOVERY_NEW.format(ALARM_CONTROL_PANEL_DOMAIN, POINT_DOMAIN),
+        async_discover_home,
     )
 
 
@@ -54,6 +57,7 @@ class MinutPointAlarmControl(AlarmControlPanelEntity):
     """The platform class required by Home Assistant."""
 
     _attr_supported_features = AlarmControlPanelEntityFeature.ARM_AWAY
+    _attr_code_arm_required = False
 
     def __init__(self, point_client: MinutPointClient, home_id: str) -> None:
         """Initialize the entity."""
